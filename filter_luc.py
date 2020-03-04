@@ -7,11 +7,11 @@ accepted_codes = ['910','911','912','913','914','915','916','917','918','919','9
 df = pd.read_csv('mapc.ma_parcels_metrofuture.csv',dtype=object)
 
 def filter_luc(dataframe):
-  """filters by land use codes affiliated with MA state agencies
-  """
-	return df[df['luc_1'].isin(accepted_codes) | df['luc_2'].isin(accepted_codes) | 
-		      df['luc_adj_1'].isin(accepted_codes)|
-		      df['luc_adj_2'].isin(accepted_codes)]
+	"""filters by land use codes affiliated with MA state agencies
+	"""
+	return df[df['luc_1'].isin(accepted_codes) | df['luc_2'].isin(accepted_codes) | \
+				df['luc_adj_1'].isin(accepted_codes)| \
+				df['luc_adj_2'].isin(accepted_codes)]
 
 land_parcel_df = filter_luc(df)
 land_parcel_df = filter_bldg(df)[['bldg_value', 'bldg_area', 'bldgv_psf', 'sqm_bldg', 'pct_bldg']]
