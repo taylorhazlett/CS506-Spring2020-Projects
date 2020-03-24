@@ -5,7 +5,7 @@ import numpy as np
 
 
 
-df = pd.read_csv('mapc.ma_parcels_metrofuture.csv')
+df = pd.read_csv('mapc.ma_parcels_metrofuture.csv', dtype={'addr_zip': np.string_})
 
 
 def filter_luc(df):
