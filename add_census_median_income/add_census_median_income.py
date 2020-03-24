@@ -45,7 +45,7 @@ def add_census_median_hh_income(dataframe):
         
         if (response.status_code == 200):
             data = response.json()
-            pprint(data)
+            # pprint(data)
             if (len(data['result']['addressMatches']) > 0):
                 # if data['result']['addressMatches'][0]['geographies']['Census Blocks'][0]['TRACT']:
                 tract = data['result']['addressMatches'][0]['geographies']['Census Blocks'][0]['TRACT']
@@ -96,6 +96,7 @@ def add_census_median_hh_income(dataframe):
             # pprint(data)
             
             median_income_df = pd.DataFrame(data[1:len(data)-1], columns = data[0])
+            # median_income_df.to_csv('ma_med_income_tract.csv',index=False)
             
             return median_income_df
 
