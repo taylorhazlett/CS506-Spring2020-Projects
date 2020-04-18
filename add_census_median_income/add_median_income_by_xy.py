@@ -4,6 +4,7 @@ import requests
 from pprint import pprint
 from datetime import datetime
 from statistics import mean
+from pyproj import CRS, Transformer
 
 def add_census_median_hh_income(dataframe):
     '''
@@ -13,6 +14,15 @@ def add_census_median_hh_income(dataframe):
             - Utilizes these longitude, latitude coordinates to obtain census tract numbers.
             - Downloads median household income for all tracts in MA.
             - Matches tract numbers in both tables to combine median income data into the input dataframe.
+        Outputs: dataframe object with added columns
+            - longitude
+            - latitude
+            - census_tract
+            - median_hh_income
+        ** Note: intermediate .csv files are outputted to the current directory:
+            - state_land_plus_long_lat.csv (input dataframe + longitude, latitude columns)
+            - ma_med_income_tract.csv (table containing Census tract number and corresponding median household income)
+            - state_land_plus_med_income.csv (input dataframe + longitude, latitude + median household income)
     '''
 
     ###########################################################################
@@ -20,6 +30,57 @@ def add_census_median_hh_income(dataframe):
     #                        FUNCTION DEFINITIONS                             #
     ###########################################################################
     ###########################################################################
+    def add_long_lat(dataframe):
+        '''
+        Uses parloc_id column in land parcel database (i.e. X, Y coordinates in NAD83 spatial reference)
+        and transforms them into longitude, latitude coordinates (in ESPG:4326 = WGS84). Saves corresponding longitude, latitude
+        coordinate information for each record in new columns appended to original dataframe.
+        Note: parloc_id may start with 'F_' or 'M_' (designating feet or meters).
+            For feet, initial spatial reference NAD83 is equivalent to ESPG:3586.
+            For meters, initial spatial reference NAD83 is equivalent to ESPG:26986.
+        '''
+        # need to reset indices to account for removal of rows from filtering
+        dataframe = dataframe.reset_index()
+
+        # add columns to store longitude and latitude coordinates
+        dataframe['longitude'] = np.nan
+        dataframe['latitude'] = np.nan
+
+        # convert parloc_id column to longitude, latitude coordinates
+        crs_4326 = CRS.from_epsg(4326) # target spatial reference to transform to
+        crs_26986 = CRS.from_epsg(26986) # for coordinates in meters
+        crs_3586 = CRS.from_epsg(3586) # for coordinates in feet
+
+        transformer_meters = Transformer.from_crs(crs_26986, crs_4326, always_xy=True)
+        transformer_feet = Transformer.from_crs(crs_3586, crs_4326, always_xy=True)
+
+        for i in range(len(dataframe)):
+            # make sure there are no whitespaces
+            parloc_id = str(dataframe.at[i, 'parloc_id']).replace(" ", "")
+            dataframe.at[i, 'parloc_id'] = parloc_id
+            
+            if (parloc_id.startswith('F')):
+                end_x_idx = parloc_id.find('_', 2)
+                x = parloc_id[2:end_x_idx]
+                y = parloc_id[end_x_idx+1:]
+                longitude, latitude = transformer_feet.transform(x, y)
+                dataframe.at[i, 'longitude'] = longitude
+                dataframe.at[i, 'latitude'] = latitude
+            elif (parloc_id.startswith('M')):
+                end_x_idx = parloc_id.find('_', 2)
+                x = parloc_id[2:end_x_idx]
+                y = parloc_id[end_x_idx+1:]
+                longitude, latitude = transformer_meters.transform(x, y)
+                dataframe.at[i, 'longitude'] = longitude
+                dataframe.at[i, 'latitude'] = latitude
+            else:
+                print('At index ', i, ' parloc_id does not start with M_ or F_')
+
+        # outputs dataframe with addition of longitude, latitude columns to .csv file in current directory
+        dataframe.to_csv('state_land_plus_long_lat.csv',index=False)
+
+        return dataframe
+
     def add_tract_numbers(dataframe):
         '''
             Adds a 'census_tract' column to the input dataframe. 
@@ -83,7 +144,7 @@ def add_census_median_hh_income(dataframe):
         # pprint(data)
         
         median_income_df = pd.DataFrame(data[1:len(data)-1], columns = data[0])
-        # median_income_df.to_csv('ma_med_income_tract.csv',index=False)
+        median_income_df.to_csv('ma_med_income_tract.csv',index=False)
         
         return median_income_df
 
@@ -92,7 +153,8 @@ def add_census_median_hh_income(dataframe):
     #                                MAIN CODE                                #
     ###########################################################################
     ###########################################################################
-
+    
+    dataframe = add_long_lat(dataframe)
     dataframe = add_tract_numbers(dataframe)
     median_income_df = get_median_hh_income()
     
@@ -115,3 +177,5 @@ def add_census_median_hh_income(dataframe):
 
     # exports results to new .csv file in current directory
     dataframe.to_csv('state_land_plus_med_income.csv',index=False)
+
+    return dataframe
